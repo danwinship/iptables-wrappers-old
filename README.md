@@ -22,20 +22,28 @@ easier.
 ## Building a container image that uses iptables
 
 When building a container image that needs to run iptables in the host
-network namespace, install iptables normally, copy the
+network namespace, install iptables 1.8 normally, copy the
 [iptables-wrapper-installer.sh](./iptables-wrapper-installer.sh)
 script into some location in your container, and run it to have it set
 up run-time autodetection. eg:
 
-    RUN apt-get update && apt-get install -y iptables
-    # or, eg, on Fedora:
-    # RUN dnf install -y iptables iptables-nft
+- Debian buster
 
-    COPY iptables-wrapper-installer.sh /root
-    # Passing "--delete" makes it delete itself when it's done
-    RUN /root/iptables-wrapper-installer.sh --delete
+      # Install iptables from buster-backports because it has some important bugfixes
+      RUN echo deb http://deb.debian.org/debian buster-backports main >> /etc/apt/sources.list; \
+          apt-get update; \
+          apt-get -t buster-backports -y --no-install-recommends install iptables
+      COPY iptables-wrapper-installer.sh /root
+      RUN /root/iptables-wrapper-installer.sh
 
-The other software in the container can then just run "iptables",
-"iptables-save", etc, normally. This will give them the wrapper
-script, which will select the correct underlying iptables mode
-automatically.
+- Fedora 29+
+
+      RUN dnf install -y iptables iptables-nft
+      COPY iptables-wrapper-installer.sh /root
+      RUN /root/iptables-wrapper-installer.sh
+
+Other software in the container can then just run "iptables",
+"iptables-save", etc, normally. The first time iptables runs, it will
+figure out which mode the system is using and then update the
+`/usr/sbin/iptables`, etc, links to point to either the nft or legacy
+versions as appropriate.
