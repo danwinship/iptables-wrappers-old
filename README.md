@@ -22,14 +22,15 @@ easier.
 ## Building a container image that uses iptables
 
 When building a container image that needs to run iptables in the host
-network namespace, install iptables 1.8 normally, copy the
-[iptables-wrapper-installer.sh](./iptables-wrapper-installer.sh)
+network namespace, install iptables 1.8.3 or later using whatever
+tools you normally would, copy the
+`[iptables-wrapper-installer.sh](./iptables-wrapper-installer.sh)`
 script into some location in your container, and run it to have it set
 up run-time autodetection. eg:
 
 - Debian buster
 
-      # Install iptables from buster-backports because it has some important bugfixes
+      # Install iptables from buster-backports to get 1.8.3
       RUN echo deb http://deb.debian.org/debian buster-backports main >> /etc/apt/sources.list; \
           apt-get update; \
           apt-get -t buster-backports -y --no-install-recommends install iptables
@@ -42,8 +43,11 @@ up run-time autodetection. eg:
       COPY iptables-wrapper-installer.sh /root
       RUN /root/iptables-wrapper-installer.sh
 
-Other software in the container can then just run "iptables",
-"iptables-save", etc, normally. The first time iptables runs, it will
-figure out which mode the system is using and then update the
-`/usr/sbin/iptables`, etc, links to point to either the nft or legacy
-versions as appropriate.
+`iptables-wrapper-installer.sh` will install new `iptables`,
+`ip6tables`, `iptables-restore`, `ip6tables-restore`, `iptables-save`,
+and `ip6tables-save` wrappers in `/usr/sbin`. Other software in the
+container can then just run "`iptables`", "`iptables-save`", etc,
+normally. The first time any of the wrappers runs, it will figure out
+which mode the system is using and then update the links in
+`/usr/sbin` to point to either the nft or legacy copies of iptables as
+appropriate.

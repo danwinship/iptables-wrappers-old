@@ -19,14 +19,41 @@
 
 set -eu
 
-# Ensure dependencies are installed
-if ! /usr/sbin/iptables-nft --version &> /dev/null; then
-    echo "ERROR: iptables-nft is not installed" 1>&2
-    exit 1
-fi
-if ! /usr/sbin/iptables-legacy --version &> /dev/null; then
-    echo "ERROR: iptables-legacy is not installed" 1>&2
-    exit 1
+if [ "$1" != "--no-sanity-check" ]; then
+    # Ensure dependencies are installed
+    if ! version=$(/usr/sbin/iptables-nft --version 2> /dev/null); then
+	echo "ERROR: iptables-nft is not installed" 1>&2
+	exit 1
+    fi
+    if ! /usr/sbin/iptables-legacy --version &> /dev/null; then
+	echo "ERROR: iptables-legacy is not installed" 1>&2
+	exit 1
+    fi
+
+    case "${version}" in
+	*v1.8.[01]\ *)
+	    echo "ERROR: iptables 1.8.0 - 1.8.2 have compatibility bugs." 1>&2
+	    echo "       Upgrade to 1.8.3 or newer." 1>&2
+	    exit 1
+	    ;;
+
+	*v1.8.2\ *)
+	    case $(rpm -q iptables || true) in
+		*.el8.*)
+		    # RHEL 8 has iptables "v1.8.2" but it has the fixes backported from 1.8.3
+		    ;;
+		*)
+		    echo "ERROR: iptables 1.8.0 - 1.8.2 have compatibility bugs." 1>&2
+		    echo "       Upgrade to 1.8.3 or newer." 1>&2
+		    exit 1
+		    ;;
+	    esac
+	    ;;
+
+	*)
+	    # 1.8.3+ are OK
+	    ;;
+    esac
 fi
 
 # Create the wrapper
@@ -111,6 +138,10 @@ elif [ -x /usr/sbin/update-alternatives ]; then
         --install /usr/sbin/iptables iptables /usr/sbin/iptables-wrapper 100 \
         --slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper-restore \
         --slave /usr/sbin/iptables-save iptables-save /usr/sbin/iptables-wrapper-save
+    update-alternatives \
+        --install /usr/sbin/ip6tables ip6tables /usr/sbin/ip6tables-wrapper 100 \
+        --slave /usr/sbin/ip6tables-restore ip6tables-restore /usr/sbin/ip6tables-wrapper-restore \
+        --slave /usr/sbin/ip6tables-save ip6tables-save /usr/sbin/ip6tables-wrapper-save
 else
     # No alternatives system
     for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
