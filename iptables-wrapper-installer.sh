@@ -25,7 +25,7 @@ if [ "$#" -eq 0 ] || [ "$1" != "--no-sanity-check" ]; then
 	echo "ERROR: iptables-nft is not installed" 1>&2
 	exit 1
     fi
-    if ! /usr/sbin/iptables-legacy --version &> /dev/null; then
+    if ! /usr/sbin/iptables-legacy --version > /dev/null 2>&1; then
 	echo "ERROR: iptables-legacy is not installed" 1>&2
 	exit 1
     fi
