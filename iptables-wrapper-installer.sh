@@ -83,8 +83,10 @@ set -eu
 # Detect whether the base system is using iptables-legacy or
 # iptables-nft. This assumes that some non-containerized process (eg
 # kubelet) has already created some iptables rules.
-num_legacy_lines=$( (iptables-legacy-save || true; ip6tables-legacy-save || true) 2>/dev/null | wc -l)
-num_nft_lines=$( (iptables-nft-save || true; ip6tables-nft-save || true) 2>/dev/null | wc -l)
+# Ignore tables, chains, comments, and COMMITs. We only want to know if there
+# are rules.
+num_legacy_lines=$( (iptables-legacy-save || true; ip6tables-legacy-save || true) 2>/dev/null |grep -v "^\([*:#]\|COMMIT\)" | wc -l)
+num_nft_lines=$( (iptables-nft-save || true; ip6tables-nft-save || true) 2>/dev/null |grep -v "^\([*:#]\|COMMIT\)" | wc -l)
 if [ "${num_legacy_lines}" -gt "${num_nft_lines}" ]; then
     mode=legacy
 else
