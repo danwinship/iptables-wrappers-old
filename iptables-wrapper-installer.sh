@@ -117,31 +117,25 @@ fi
 exec "$0" "$@"
 EOF
 
-# Link the wrapper
-for cmd in iptables-wrapper-save iptables-wrapper-restore ip6tables-wrapper ip6tables-wrapper-save ip6tables-wrapper-restore; do
-    rm -f "/usr/sbin/${cmd}"
-    ln -s /usr/sbin/iptables-wrapper "/usr/sbin/${cmd}"
-done
-
 if [ -x /usr/sbin/alternatives ]; then
     # Fedora/SUSE style
     alternatives \
         --install /usr/sbin/iptables iptables /usr/sbin/iptables-wrapper 100 \
-        --slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper-restore \
-        --slave /usr/sbin/iptables-save iptables-save /usr/sbin/iptables-wrapper-save \
-        --slave /usr/sbin/ip6tables iptables /usr/sbin/ip6tables-wrapper \
-        --slave /usr/sbin/ip6tables-restore iptables-restore /usr/sbin/ip6tables-wrapper-restore \
-        --slave /usr/sbin/ip6tables-save iptables-save /usr/sbin/ip6tables-wrapper-save
+        --slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper \
+        --slave /usr/sbin/iptables-save iptables-save /usr/sbin/iptables-wrapper \
+        --slave /usr/sbin/ip6tables iptables /usr/sbin/iptables-wrapper \
+        --slave /usr/sbin/ip6tables-restore iptables-restore /usr/sbin/iptables-wrapper \
+        --slave /usr/sbin/ip6tables-save iptables-save /usr/sbin/iptables-wrapper
 elif [ -x /usr/sbin/update-alternatives ]; then
     # Debian style
     update-alternatives \
         --install /usr/sbin/iptables iptables /usr/sbin/iptables-wrapper 100 \
-        --slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper-restore \
-        --slave /usr/sbin/iptables-save iptables-save /usr/sbin/iptables-wrapper-save
+        --slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper \
+        --slave /usr/sbin/iptables-save iptables-save /usr/sbin/iptables-wrapper
     update-alternatives \
-        --install /usr/sbin/ip6tables ip6tables /usr/sbin/ip6tables-wrapper 100 \
-        --slave /usr/sbin/ip6tables-restore ip6tables-restore /usr/sbin/ip6tables-wrapper-restore \
-        --slave /usr/sbin/ip6tables-save ip6tables-save /usr/sbin/ip6tables-wrapper-save
+        --install /usr/sbin/ip6tables ip6tables /usr/sbin/iptables-wrapper 100 \
+        --slave /usr/sbin/ip6tables-restore ip6tables-restore /usr/sbin/iptables-wrapper \
+        --slave /usr/sbin/ip6tables-save ip6tables-save /usr/sbin/iptables-wrapper
 else
     # No alternatives system
     for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
