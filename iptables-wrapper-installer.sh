@@ -91,6 +91,7 @@ else
     mode=nft
 fi
 
+failed=0
 # Replace the wrapper scripts with the real binaries
 if [ -x /usr/sbin/alternatives ]; then
     # Fedora/SUSE style
@@ -107,7 +108,7 @@ else
     done 2>/dev/null || failed=1
 fi
 
-if [ "${failed}" = 1 ]; then
+if [ "${failed}" -gt 0 ]; then
     echo "Unable to redirect iptables binaries. (Are you running in an unprivileged pod?)" 1>&2
     # fake it, though this will probably also fail if they aren't root
     exec "/usr/sbin/xtables-${mode}-multi" "$0" "$@"
