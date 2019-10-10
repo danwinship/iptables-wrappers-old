@@ -19,7 +19,7 @@
 
 set -eu
 
-if [ "$1" != "--no-sanity-check" ]; then
+if [ "$#" -eq 0 ] || [ "$1" != "--no-sanity-check" ]; then
     # Ensure dependencies are installed
     if ! version=$(/usr/sbin/iptables-nft --version 2> /dev/null); then
 	echo "ERROR: iptables-nft is not installed" 1>&2
