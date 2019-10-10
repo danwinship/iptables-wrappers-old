@@ -116,6 +116,7 @@ fi
 # Now re-exec the original command with the newly-selected alternative
 exec "$0" "$@"
 EOF
+chmod +x /usr/sbin/iptables-wrapper
 
 if [ -x /usr/sbin/alternatives ]; then
     # Fedora/SUSE style
