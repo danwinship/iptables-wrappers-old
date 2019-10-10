@@ -58,7 +58,7 @@ fi
 
 # Create the wrapper
 rm -f /usr/sbin/iptables-wrapper
-cat > /usr/sbin/iptables-wrapper <<EOF
+cat > /usr/sbin/iptables-wrapper <<'EOF'
 #!/bin/sh
 
 # Copyright 2019 Red Hat, Inc.
