@@ -22,37 +22,37 @@ set -eu
 if [ "$#" -eq 0 ] || [ "$1" != "--no-sanity-check" ]; then
     # Ensure dependencies are installed
     if ! version=$(/usr/sbin/iptables-nft --version 2> /dev/null); then
-	echo "ERROR: iptables-nft is not installed" 1>&2
-	exit 1
+        echo "ERROR: iptables-nft is not installed" 1>&2
+        exit 1
     fi
     if ! /usr/sbin/iptables-legacy --version > /dev/null 2>&1; then
-	echo "ERROR: iptables-legacy is not installed" 1>&2
-	exit 1
+        echo "ERROR: iptables-legacy is not installed" 1>&2
+        exit 1
     fi
 
     case "${version}" in
-	*v1.8.[01]\ *)
-	    echo "ERROR: iptables 1.8.0 - 1.8.2 have compatibility bugs." 1>&2
-	    echo "       Upgrade to 1.8.3 or newer." 1>&2
-	    exit 1
-	    ;;
+    *v1.8.[01]\ *)
+        echo "ERROR: iptables 1.8.0 - 1.8.2 have compatibility bugs." 1>&2
+        echo "       Upgrade to 1.8.3 or newer." 1>&2
+        exit 1
+        ;;
 
-	*v1.8.2\ *)
-	    case $(rpm -q iptables || true) in
-		*.el8.*)
-		    # RHEL 8 has iptables "v1.8.2" but it has the fixes backported from 1.8.3
-		    ;;
-		*)
-		    echo "ERROR: iptables 1.8.0 - 1.8.2 have compatibility bugs." 1>&2
-		    echo "       Upgrade to 1.8.3 or newer." 1>&2
-		    exit 1
-		    ;;
-	    esac
-	    ;;
+    *v1.8.2\ *)
+        case $(rpm -q iptables || true) in
+        *.el8.*)
+            # RHEL 8 has iptables "v1.8.2" but it has the fixes backported from 1.8.3
+            ;;
+        *)
+            echo "ERROR: iptables 1.8.0 - 1.8.2 have compatibility bugs." 1>&2
+            echo "       Upgrade to 1.8.3 or newer." 1>&2
+            exit 1
+            ;;
+        esac
+        ;;
 
-	*)
-	    # 1.8.3+ are OK
-	    ;;
+    *)
+        # 1.8.3+ are OK
+        ;;
     esac
 fi
 
@@ -126,11 +126,11 @@ done
 if [ -x /usr/sbin/alternatives ]; then
     # Fedora/SUSE style
     alternatives \
-	--install /usr/sbin/iptables iptables /usr/sbin/iptables-wrapper 100 \
-	--slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper-restore \
+        --install /usr/sbin/iptables iptables /usr/sbin/iptables-wrapper 100 \
+        --slave /usr/sbin/iptables-restore iptables-restore /usr/sbin/iptables-wrapper-restore \
         --slave /usr/sbin/iptables-save iptables-save /usr/sbin/iptables-wrapper-save \
-	--slave /usr/sbin/ip6tables iptables /usr/sbin/ip6tables-wrapper \
-	--slave /usr/sbin/ip6tables-restore iptables-restore /usr/sbin/ip6tables-wrapper-restore \
+        --slave /usr/sbin/ip6tables iptables /usr/sbin/ip6tables-wrapper \
+        --slave /usr/sbin/ip6tables-restore iptables-restore /usr/sbin/ip6tables-wrapper-restore \
         --slave /usr/sbin/ip6tables-save iptables-save /usr/sbin/ip6tables-wrapper-save
 elif [ -x /usr/sbin/update-alternatives ]; then
     # Debian style
