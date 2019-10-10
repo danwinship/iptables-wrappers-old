@@ -103,7 +103,7 @@ else
     # No alternatives system
     for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
         rm -f "/usr/sbin/${cmd}"
-        ln "/usr/sbin/xtables-${mode}-multi" "/usr/sbin/${cmd}"
+        ln -s "/usr/sbin/xtables-${mode}-multi" "/usr/sbin/${cmd}"
     done 2>/dev/null || failed=1
 fi
 
@@ -120,7 +120,7 @@ EOF
 # Link the wrapper
 for cmd in iptables-wrapper-save iptables-wrapper-restore ip6tables-wrapper ip6tables-wrapper-save ip6tables-wrapper-restore; do
     rm -f "/usr/sbin/${cmd}"
-    ln "/usr/sbin/${cmd}" /usr/sbin/iptables-wrapper
+    ln -s /usr/sbin/iptables-wrapper "/usr/sbin/${cmd}"
 done
 
 if [ -x /usr/sbin/alternatives ]; then
@@ -146,7 +146,7 @@ else
     # No alternatives system
     for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
         rm -f "/usr/sbin/${cmd}"
-        ln /usr/sbin/iptables-wrapper "/usr/sbin/${cmd}"
+        ln -s /usr/sbin/iptables-wrapper "/usr/sbin/${cmd}"
     done
 fi
 
