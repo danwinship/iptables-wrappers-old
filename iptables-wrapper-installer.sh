@@ -19,7 +19,7 @@
 
 set -eu
 
-if [ "$#" -eq 0 ] || [ "$1" != "--no-sanity-check" ]; then
+if [ "${1:-}" != "--no-sanity-check" ]; then
     # Ensure dependencies are installed
     if ! version=$(/usr/sbin/iptables-nft --version 2> /dev/null); then
         echo "ERROR: iptables-nft is not installed" 1>&2
@@ -85,8 +85,8 @@ set -eu
 # kubelet) has already created some iptables rules.
 # Ignore tables, chains, comments, and COMMITs. We only want to know if there
 # are rules.
-num_legacy_lines=$( (iptables-legacy-save || true; ip6tables-legacy-save || true) 2>/dev/null |grep -v "^\([*:#]\|COMMIT\)" | wc -l)
-num_nft_lines=$( (iptables-nft-save || true; ip6tables-nft-save || true) 2>/dev/null |grep -v "^\([*:#]\|COMMIT\)" | wc -l)
+num_legacy_lines=$( (iptables-legacy-save || true; ip6tables-legacy-save || true) 2>/dev/null | grep -v "^\([*:#]\|COMMIT\)" | wc -l)
+num_nft_lines=$( (iptables-nft-save || true; ip6tables-nft-save || true) 2>/dev/null | grep -v "^\([*:#]\|COMMIT\)" | wc -l)
 if [ "${num_legacy_lines}" -gt "${num_nft_lines}" ]; then
     mode=legacy
 else
@@ -110,7 +110,7 @@ else
     done 2>/dev/null || failed=1
 fi
 
-if [ "${failed}" -gt 0 ]; then
+if [ "${failed}" = 1 ]; then
     echo "Unable to redirect iptables binaries. (Are you running in an unprivileged pod?)" 1>&2
     # fake it, though this will probably also fail if they aren't root
     exec "/usr/sbin/xtables-${mode}-multi" "$0" "$@"
