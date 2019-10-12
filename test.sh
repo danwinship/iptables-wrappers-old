@@ -16,47 +16,53 @@
 
 set -eu
 
-INSTALLER="iptables-wrapper-installer.sh"
-WRAPPER="/usr/sbin/iptables-wrapper"
+mode=$1
 
-trap "test -e ${INSTALLER}.test && rm ${INSTALLER}.test" EXIT
+ensure_iptables_undecided() {
+    iptables=$(realpath /usr/sbin/iptables)
+    if [ "${iptables}" != "/usr/sbin/iptables-wrapper" ]; then
+	echo "iptables link was resolved prematurely! (${iptables})" 1>&2
+	exit 1
+    fi
+}
 
-# Verify installer gets removed after invocation
-#
-cp "${INSTALLER}" "${INSTALLER}.test"
-sh "${INSTALLER}.test" --no-sanity-check
-! test -e "${INSTALLER}"
+ensure_iptables_resolved() {
+    expected=$1
+    iptables=$(realpath /usr/sbin/iptables)
+    if [ "${iptables}" = "/usr/sbin/iptables-wrapper" ]; then
+	echo "iptables link is not yet resolved!" 1>&2
+	exit 1
+    fi
+    version=$(iptables -V | sed -e 's/.*(\(.*\)).*/\1/')
+    case "${version}/${expected}" in
+	legacy/legacy|nf_tables/nft)
+	    return
+	    ;;
+	*)
+	    echo "iptables link resolved incorrectly (expected ${expected}, got ${version})" 1>&2
+	    exit 1
+	    ;;
+    esac
+}
 
-# verify installer sets up wrappers correctly
-#
-cp "${INSTALLER}" "${INSTALLER}.test"
-sh "${INSTALLER}.test" --no-sanity-check
-for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
-    test -h "/usr/sbin/${cmd}"
-    test "$(readlink -f /usr/sbin/${cmd})" = "${WRAPPER}"
-done
+ensure_iptables_undecided
 
-# verify variant is properly chosen
-#
-for chosen in legacy nft; do
-    cp "${INSTALLER}" "${INSTALLER}.test"
-    sh "${INSTALLER}.test" --no-sanity-check
-    iptables-legacy -F
-    iptables-nft -F
-    iptables-${chosen} -A INPUT -j ACCEPT
-    iptables -L > /dev/null
-    test -h /usr/sbin/iptables
-    test "$(readlink -f /usr/sbin/iptables)" = "/usr/sbin/xtables-${chosen}-multi"
-done
+# Initialize the chosen iptables mode with a subset of kubelet's rules
+iptables-${mode} -t nat -N KUBE-MARK-DROP
+iptables-${mode} -t nat -A KUBE-MARK-DROP -j MARK --set-xmark 0x8000/0x8000
+iptables-${mode} -t filter -N KUBE-FIREWALL
+iptables-${mode} -t filter -A KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j DROP
+iptables-${mode} -t filter -I OUTPUT -j KUBE-FIREWALL
+iptables-${mode} -t filter -I INPUT -j KUBE-FIREWALL
 
-# verify -nft wins in case of tie
-#
-cp "${INSTALLER}" "${INSTALLER}.test"
-sh "${INSTALLER}.test" --no-sanity-check
-iptables-legacy -F
-iptables-nft -F
-iptables-legacy -A INPUT -j ACCEPT
-iptables-nft -A INPUT -j ACCEPT
+ensure_iptables_undecided
+
 iptables -L > /dev/null
-test -h /usr/sbin/iptables
-test "$(readlink -f /usr/sbin/iptables)" = "/usr/sbin/xtables-nft-multi"
+
+ensure_iptables_resolved ${mode}
+
+# Fail on iptables 1.8.2 in nft mode
+if ! iptables -C KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j DROP; then
+    echo "failed to match previously-added rule; iptables is broken" 1>&2
+    exit 1
+fi

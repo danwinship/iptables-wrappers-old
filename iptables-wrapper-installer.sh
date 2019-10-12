@@ -38,7 +38,7 @@ if [ "${1:-}" != "--no-sanity-check" ]; then
         ;;
 
     *v1.8.2\ *)
-        case $(rpm -q iptables || true) in
+        case $(rpm -q iptables 2> /dev/null || true) in
         *.el8.*)
             # RHEL 8 has iptables "v1.8.2" but it has the fixes backported from 1.8.3
             ;;
