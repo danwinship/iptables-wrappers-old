@@ -5,49 +5,112 @@ iptables in containers.
 
 ## Background
 
-As of iptables 1.8, there are two iptables modes: "legacy", using the
-kernel iptables API as with iptables 1.6 and earlier, and "nft", which
-translates the iptables command-line API into the kernel nftables API.
-These modes are implemented by separate binaries, and by default
-/usr/sbin/iptables, /usr/sbin/iptables-save, etc, will be symlinks to
-one or the other set of binaries.
+As of iptables 1.8, the iptables command line clients come in two
+different versions/modes: "legacy", which uses the kernel iptables API
+just like iptables 1.6 and earlier did, and "nft", which translates
+the iptables command-line API into the kernel nftables API.
 
-Mixing the two modes within a single network namespace will (in
-general) not work and should be avoided. This means that processes
-that run in containers but that make iptables changes in the host
-network namespace need to be careful to use the same mode as the host
-itself is configured to use. These wrappers are designed to make that
-easier.
+Because they connect to two different subsystems in the kernel, you
+cannot mix and match between them; in particular, if you are adding a
+new rule that needs to run either before or after some existing rules
+(such as the system firewall rules), then you need to create your rule
+with the same iptables mode as the other rules were created with,
+since otherwise the ordering may not be what you expect. (eg, if you
+*prepend* a rule using the nft-based client, it will still run *after*
+all rules that were added with the legacy iptables client.)
+
+In particular, this means that if you create a container image that
+will make changes to iptables rules in the host network namespace, and
+you want that container to be able to work on any host, then you need
+to figure out at run time which mode the host is using, and then also
+use that mode yourself. This wrapper is designed to do that for you.
+
+### Additional iptables-nft 1.8.0-1.8.2 compatibility problems
+
+In addition to the general problem of needing to use the right mode,
+there is a second problem with iptables 1.8, which is that the first
+few releases (1.8.0, 1.8.1, and 1.8.2) had bugs in nft mode that made
+them not work with kubelet and some other programs. In particular:
+
+  - Some commands did not exit with success or failure in exactly the
+    same situations as the legacy clients. Eg, with the legacy
+    clients, `iptables -F CHAIN` would exit with an error if the chain
+    did not exist, but with the nft-based clients up to 1.8.2, it
+    would exit with success.
+
+  - In some cases it was possible to add a rule with `iptables -A` but
+    then have `iptables -C` claim that the rule did not exist. (This
+    led to kubelet repeatedly creating more and more copies of the
+    same rule, thinking it had not been created yet.)
+
+All currently-known compatibility problems are fixed in iptables
+1.8.3.
+
+## iptables-wrapper
+
+The `iptables-wrapper-installer.sh` script in this repo will install
+an `iptables-wrapper` script alongside `iptables-legacy` and
+`iptable-nft` in `/usr/sbin` (or `/sbin`), and adjust the symlinks on
+`iptables`, `iptables-save`, etc, to point to the wrapper.
+
+The first time the wrapper is run, it will figure out which mode the
+system is using, update the `iptables`, `iptables-save`, etc, links to
+point to either the nft or legacy copies of iptables as appropriate,
+and then exec the appropriate binary. After that first call, the
+wrapper will not be used again; future calls to iptables will go
+directly to the correct underlying binary.
 
 ## Building a container image that uses iptables
 
 When building a container image that needs to run iptables in the host
-network namespace, install iptables 1.8.3 or later using whatever
-tools you normally would, copy the
-`[iptables-wrapper-installer.sh](./iptables-wrapper-installer.sh)`
-script into some location in your container, and run it to have it set
-up run-time autodetection. eg:
+network namespace, install iptables 1.8.3 or later in the container
+using whatever tools you normally would. Then copy the
+[`iptables-wrapper-installer.sh`](./iptables-wrapper-installer.sh)
+script into your container, and run it to have it set up run-time
+autodetection.
 
-- Debian buster
+Some distro-specific examples:
 
-      # Install iptables from buster-backports to get 1.8.3
+- Alpine Linux
+
+      FROM alpine:3.10
+
+      RUN apk add --no-cache iptables
+      COPY iptables-wrapper-installer.sh /
+      RUN /iptables-wrapper-installer.sh
+
+- Debian GNU/Linux
+
+  Debian stable (buster) ships iptables 1.8.2, but iptables 1.8.3 is
+  available in buster-backports, so you should install it from there:
+
+      FROM debian:buster
+
       RUN echo deb http://deb.debian.org/debian buster-backports main >> /etc/apt/sources.list; \
           apt-get update; \
           apt-get -t buster-backports -y --no-install-recommends install iptables
-      COPY iptables-wrapper-installer.sh /root
-      RUN /root/iptables-wrapper-installer.sh
 
-- Fedora 29+
+      COPY iptables-wrapper-installer.sh /
+      RUN /iptables-wrapper-installer.sh
+
+- Fedora
+
+  At the moment, Fedora 30 still ships iptables 1.8.2. This should
+  eventually be fixed. For now, if you are shipping a container image
+  that you know is not affected by the compatibility bugs, you can
+  pass `--no-sanity-check` to the installer to make it not check the
+  iptables version:
+
+      FROM fedora:30
 
       RUN dnf install -y iptables iptables-nft
-      COPY iptables-wrapper-installer.sh /root
-      RUN /root/iptables-wrapper-installer.sh
 
-`iptables-wrapper-installer.sh` will install new `iptables`,
-`ip6tables`, `iptables-restore`, `ip6tables-restore`, `iptables-save`,
-and `ip6tables-save` wrappers in `/usr/sbin`. Other software in the
-container can then just run "`iptables`", "`iptables-save`", etc,
-normally. The first time any of the wrappers runs, it will figure out
-which mode the system is using and then update the links in
-`/usr/sbin` to point to either the nft or legacy copies of iptables as
-appropriate.
+      COPY iptables-wrapper-installer.sh /
+      RUN /iptables-wrapper-installer.sh --no-sanity-check
+
+- RHEL / CentOS
+
+  RHEL/CentOS 7 ship iptables 1.4, which does not support nft mode.
+  RHEL/CentOS 8 ship a hacked version of iptables 1.8 that *only*
+  supports nft mode. Therefore, neither can be used as a basis for a
+  portable iptables-using container image.
