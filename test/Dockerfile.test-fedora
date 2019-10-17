@@ -12,17 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-### Dockerfile for building a Debian buster image for testing
+### Dockerfile for building a Fedora 30 image for testing
 
-FROM debian:buster
+FROM fedora:30
 
-ARG INSTALL_ARGS
-ARG REPO=buster
-
-RUN echo deb http://deb.debian.org/debian buster-backports main >> /etc/apt/sources.list; \
-    apt-get update; \
-    apt-get -t ${REPO} -y --no-install-recommends install iptables
-
+RUN dnf install -y iptables iptables-nft
 COPY iptables-wrapper-installer.sh /
-RUN /iptables-wrapper-installer.sh ${INSTALL_ARGS}
-COPY test.sh /
+RUN /iptables-wrapper-installer.sh
+COPY test/test.sh /

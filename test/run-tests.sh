@@ -36,12 +36,14 @@ else
     exit 1
 fi
 
+cd $(dirname "$0")/..
+
 function build() {
     build_tag=iptables-wrapper-test-$1
     dockerfile=Dockerfile.test-${1%%-*}
     shift
 
-    ${docker} build -q -t ${build_tag} -f ${dockerfile} "$@" > /dev/null
+    ${docker} build --no-cache -q -t ${build_tag} -f test/${dockerfile} "$@" . > /dev/null
 }
 
 echo ""

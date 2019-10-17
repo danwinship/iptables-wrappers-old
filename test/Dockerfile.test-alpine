@@ -19,4 +19,4 @@ FROM alpine:3.10
 RUN apk add --no-cache iptables
 COPY iptables-wrapper-installer.sh /
 RUN /iptables-wrapper-installer.sh
-COPY test.sh /
+COPY test/test.sh /
