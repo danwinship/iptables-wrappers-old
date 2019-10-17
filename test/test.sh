@@ -18,9 +18,18 @@ set -eu
 
 mode=$1
 
+if [ -d /usr/sbin -a -e /usr/sbin/iptables ]; then
+    sbin="/usr/sbin"
+elif [ -d /sbin -a -e /sbin/iptables ]; then
+    sbin="/sbin"
+else
+    echo "ERROR: iptables is not present in either /usr/sbin or /sbin" 1>&2
+    exit 1
+fi
+
 ensure_iptables_undecided() {
-    iptables=$(realpath /usr/sbin/iptables)
-    if [ "${iptables}" != "/usr/sbin/iptables-wrapper" ]; then
+    iptables=$(realpath "${sbin}/iptables")
+    if [ "${iptables}" != "${sbin}/iptables-wrapper" ]; then
 	echo "iptables link was resolved prematurely! (${iptables})" 1>&2
 	exit 1
     fi
@@ -28,8 +37,8 @@ ensure_iptables_undecided() {
 
 ensure_iptables_resolved() {
     expected=$1
-    iptables=$(realpath /usr/sbin/iptables)
-    if [ "${iptables}" = "/usr/sbin/iptables-wrapper" ]; then
+    iptables=$(realpath "${sbin}/iptables")
+    if [ "${iptables}" = "${sbin}/iptables-wrapper" ]; then
 	echo "iptables link is not yet resolved!" 1>&2
 	exit 1
     fi

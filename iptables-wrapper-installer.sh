@@ -19,13 +19,22 @@
 
 set -eu
 
+if [ -d /usr/sbin -a -e /usr/sbin/iptables ]; then
+    sbin="/usr/sbin"
+elif [ -d /sbin -a -e /sbin/iptables ]; then
+    sbin="/sbin"
+else
+    echo "ERROR: iptables is not present in either /usr/sbin or /sbin" 1>&2
+    exit 1
+fi
+
 if [ "${1:-}" != "--no-sanity-check" ]; then
     # Ensure dependencies are installed
-    if ! version=$(/usr/sbin/iptables-nft --version 2> /dev/null); then
+    if ! version=$("${sbin}/iptables-nft" --version 2> /dev/null); then
         echo "ERROR: iptables-nft is not installed" 1>&2
         exit 1
     fi
-    if ! /usr/sbin/iptables-legacy --version > /dev/null 2>&1; then
+    if ! "${sbin}/iptables-legacy" --version > /dev/null 2>&1; then
         echo "ERROR: iptables-legacy is not installed" 1>&2
         exit 1
     fi
@@ -43,8 +52,8 @@ if [ "${1:-}" != "--no-sanity-check" ]; then
 fi
 
 # Create the wrapper
-rm -f /usr/sbin/iptables-wrapper
-cat > /usr/sbin/iptables-wrapper <<'EOF'
+rm -f "${sbin}/iptables-wrapper"
+cat > "${sbin}/iptables-wrapper" <<'EOF'
 #!/bin/sh
 
 # Copyright 2019 Red Hat, Inc.
@@ -66,13 +75,13 @@ cat > /usr/sbin/iptables-wrapper <<'EOF'
 
 set -eu
 
+sbin=$(dirname "$0")
+
 # Detect whether the base system is using iptables-legacy or
 # iptables-nft. This assumes that some non-containerized process (eg
 # kubelet) has already created some iptables rules.
-# Ignore tables, chains, comments, and COMMITs. We only want to know if there
-# are rules.
-num_legacy_lines=$( (iptables-legacy-save || true; ip6tables-legacy-save || true) 2>/dev/null | grep -v "^\([*:#]\|COMMIT\)" | wc -l)
-num_nft_lines=$( (iptables-nft-save || true; ip6tables-nft-save || true) 2>/dev/null | grep -v "^\([*:#]\|COMMIT\)" | wc -l)
+num_legacy_lines=$( (iptables-legacy-save || true; ip6tables-legacy-save || true) 2>/dev/null | grep '^-' | wc -l)
+num_nft_lines=$( (iptables-nft-save || true; ip6tables-nft-save || true) 2>/dev/null | grep '^-' | wc -l)
 if [ "${num_legacy_lines}" -gt "${num_nft_lines}" ]; then
     mode=legacy
 else
@@ -91,21 +100,21 @@ elif [ -x /usr/sbin/update-alternatives ]; then
 else
     # No alternatives system
     for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
-        rm -f "/usr/sbin/${cmd}"
-        ln -s "/usr/sbin/xtables-${mode}-multi" "/usr/sbin/${cmd}"
+        rm -f "${sbin}/${cmd}"
+        ln -s "${sbin}/xtables-${mode}-multi" "${sbin}/${cmd}"
     done 2>/dev/null || failed=1
 fi
 
 if [ "${failed}" = 1 ]; then
     echo "Unable to redirect iptables binaries. (Are you running in an unprivileged pod?)" 1>&2
     # fake it, though this will probably also fail if they aren't root
-    exec "/usr/sbin/xtables-${mode}-multi" "$0" "$@"
+    exec "${sbin}/xtables-${mode}-multi" "$0" "$@"
 fi
 
 # Now re-exec the original command with the newly-selected alternative
 exec "$0" "$@"
 EOF
-chmod +x /usr/sbin/iptables-wrapper
+chmod +x "${sbin}/iptables-wrapper"
 
 if [ -x /usr/sbin/alternatives ]; then
     # Fedora/SUSE style
@@ -129,8 +138,8 @@ elif [ -x /usr/sbin/update-alternatives ]; then
 else
     # No alternatives system
     for cmd in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do
-        rm -f "/usr/sbin/${cmd}"
-        ln -s /usr/sbin/iptables-wrapper "/usr/sbin/${cmd}"
+        rm -f "${sbin}/${cmd}"
+        ln -s "${sbin}/iptables-wrapper" "${sbin}/${cmd}"
     done
 fi
 
