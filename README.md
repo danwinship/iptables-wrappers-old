@@ -43,15 +43,26 @@ them not work with kubelet and some other programs. In particular:
     led to kubelet repeatedly creating more and more copies of the
     same rule, thinking it had not been created yet.)
 
-All currently-known compatibility problems are fixed in iptables
-1.8.3.
+iptables 1.8.3 fixes these compatibility problems, but has a slightly
+different problem, which is that `iptables-nft` will get stuck in an
+infinite loop if it can't load the kernel `nf_tables` module. The
+wrapper script has code to deal with this.
+
+All currently-known problems will be fixed in iptables 1.8.4.
 
 ## iptables-wrapper
 
 The `iptables-wrapper-installer.sh` script in this repo will install
 an `iptables-wrapper` script alongside `iptables-legacy` and
-`iptable-nft` in `/usr/sbin` (or `/sbin`), and adjust the symlinks on
+`iptables-nft` in `/usr/sbin` (or `/sbin`), and adjust the symlinks on
 `iptables`, `iptables-save`, etc, to point to the wrapper.
+
+(Because of the known bugs, `iptables-wrapper-installer.sh` will
+refuse to install the wrappers into a container with iptables earlier
+than 1.8.2. If you really know what you're doing you can pass
+`--no-sanity-check` to install anyway. Because it can work around the
+bugs in 1.8.3, the installer will allow you to install with iptables
+1.8.3.)
 
 The first time the wrapper is run, it will figure out which mode the
 system is using, update the `iptables`, `iptables-save`, etc, links to
